@@ -37,7 +37,7 @@ class FieldPermissionMixin(object):
         fieldsets = super(FieldPermissionMixin, self).get_fieldsets(request, obj).copy()
 
         for permission, fields in self.fields_permissions.items():
-            if (not request.user.has_perm(permission)) or (
+            if (not request.user.has_perm(permission)) and (
                     not request.user.has_perm(get_other_permission_type(permission))):
                 if isinstance(fields, (str, list)):
                     fields = (fields,)
@@ -49,8 +49,12 @@ class FieldPermissionMixin(object):
         fieldsets = super(FieldPermissionMixin, self).get_readonly_fields(request, obj).copy()
 
         # if user has view perm but not corresponding change perm
-        read_only_perms = filter(lambda elem: get_permission_type(elem[0]) == PermissionType.VIEW,
-                                 self.fields_permissions)
+        read_only_perms = {}
+        for model_permission, fields in self.fields_permissions.items():
+            permission = model_permission.split('.')[1]
+            if get_permission_type(permission) == PermissionType.VIEW:
+                read_only_perms[permission] = fields
+
         for permission, fields in read_only_perms.items():
             if request.user.has_perm(permission) and (not request.user.has_perm(get_other_permission_type(permission))):
                 if isinstance(fields, (str, list)):
